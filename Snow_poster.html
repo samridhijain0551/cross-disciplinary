@@ -27,7 +27,6 @@
             overflow: hidden;
             background-color: #050505;
             font-family: 'Inter', sans-serif;
-            /* Prevent scrolling/pull-to-refresh on mobile for better interaction */
             touch-action: none; 
             user-select: none;
             -webkit-user-select: none;
@@ -39,7 +38,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            pointer-events: none; /* Let clicks pass through to canvas */
+            pointer-events: none; 
             display: flex;
             flex-direction: column;
             justify-content: flex-start; 
@@ -68,7 +67,6 @@
             letter-spacing: 0.1em;
         }
 
-        /* Container for bottom elements */
         .bottom-controls {
             margin-top: auto; 
             display: flex;
@@ -216,48 +214,37 @@
         let globalSnow = [];
         
         // --- Audio Variables ---
-        let powderSound; // Custom file variable
+        let powderSound; 
         let noisePowder, filterPowder;
-        // Ice variables
+        // Ice variables (Improved for "Glassy" feel)
         let noiseIceSlide, filterIceSlide;
         let noiseIceStep, envIceStep, filterIceStep;
+        let oscIceStep, envIceOsc;
         
         let noiseCrunch, envCrunch, filterCrunch;
         let noiseSmooth, filterSmooth;
 
-        // --- PRELOAD FUNCTION FOR CUSTOM AUDIO ---
         function preload() {
-            // ============================================================
-            // Add custom audio link here if needed:
             // powderSound = loadSound('YOUR_LINK_HERE');
-            // ============================================================
         }
 
         function setup() {
-            // Create canvas that fills the window
             let cnv = createCanvas(windowWidth, windowHeight);
             cnv.style('display', 'block');
             
             textAlign(CENTER, CENTER);
             rectMode(CENTER);
             
-            // Initialize lastStep to center to prevent initial jump
             lastStep.x = windowWidth / 2;
             lastStep.y = windowHeight / 2;
             
-            // Initialize Modes
             initPowder();
             initSlippery();
             initPacked();
             initSmooth();
-            
-            // Initialize Global Snow
             initGlobalSnow();
-            
-            // Setup Audio Synthesizers
             setupAudio();
             
-            // Show hint if audio context needs a click
             if (getAudioContext().state !== 'running') {
                 document.getElementById('audio-hint').style.opacity = '1';
             }
@@ -269,28 +256,23 @@
         
         function touchStarted() {
             startAudioContext();
-            // Prevent default touch behaviors (scrolling)
             return false;
         }
         
         function startAudioContext() {
-            // Ensure audio context is running on user interaction
             if (!audioStarted) {
                 userStartAudio();
                 audioStarted = true;
-                
-                // Play custom sound if it loaded
                 if (powderSound && powderSound.isLoaded()) {
                     powderSound.loop();
                     powderSound.setVolume(0);
                 }
-                
                 document.getElementById('audio-hint').style.opacity = '0';
             }
         }
 
         function setupAudio() {
-            // 1. Powder: Deep rumble (Brown Noise + LowPass)
+            // 1. Powder: Deep rumble
             noisePowder = new p5.Noise('brown');
             noisePowder.amp(0);
             noisePowder.start();
@@ -299,33 +281,41 @@
             noisePowder.disconnect();
             noisePowder.connect(filterPowder);
 
-            // 2. Slippery: Scraping Ice + Cracking Steps
-            // Continuous Slide (Scraping)
-            noiseIceSlide = new p5.Noise('white');
+            // 2. Slippery: "Icy" Glassy sounds
+            // Slide scrape (Using Pink Noise for smoother texture)
+            noiseIceSlide = new p5.Noise('pink');
             noiseIceSlide.amp(0);
             noiseIceSlide.start();
             filterIceSlide = new p5.BandPass();
-            filterIceSlide.freq(2500);
-            filterIceSlide.res(5);
+            filterIceSlide.freq(1500); // Lower, less "hiss-heavy"
+            filterIceSlide.res(8); // High resonance for "singing" ice
             noiseIceSlide.disconnect();
             noiseIceSlide.connect(filterIceSlide);
 
-            // Discrete Steps (Cracking)
-            noiseIceStep = new p5.Noise('white'); // White noise for brittle crack
+            // Impact noise (Brittle crack)
+            noiseIceStep = new p5.Noise('pink'); 
             noiseIceStep.start();
             noiseIceStep.amp(0);
             filterIceStep = new p5.HighPass();
-            filterIceStep.freq(3000); // Very high frequency
+            filterIceStep.freq(2000); 
             noiseIceStep.disconnect();
             noiseIceStep.connect(filterIceStep);
             
             envIceStep = new p5.Envelope();
-            // Sharp attack, very short decay for "crack"
-            envIceStep.setADSR(0.001, 0.05, 0, 0.05); 
-            envIceStep.setRange(0.6, 0);
+            envIceStep.setADSR(0.005, 0.08, 0, 0.02); 
+            envIceStep.setRange(0.4, 0);
 
-            // 3. Packed: Crunch Steps (Pink Noise + Envelope)
-            noiseCrunch = new p5.Noise('pink'); // Pink noise for duller crunch
+            // Impact tone (The "Clink" of ice)
+            oscIceStep = new p5.Oscillator('sine');
+            oscIceStep.start();
+            oscIceStep.amp(0);
+            
+            envIceOsc = new p5.Envelope();
+            envIceOsc.setADSR(0.001, 0.1, 0, 0.1);
+            envIceOsc.setRange(0.2, 0);
+
+            // 3. Packed: Crunch Steps
+            noiseCrunch = new p5.Noise('pink'); 
             noiseCrunch.start();
             noiseCrunch.amp(0); 
             filterCrunch = new p5.HighPass();
@@ -334,11 +324,10 @@
             noiseCrunch.connect(filterCrunch);
             
             envCrunch = new p5.Envelope();
-            // Longer decay for "crunch"
             envCrunch.setADSR(0.01, 0.15, 0, 0.1);
             envCrunch.setRange(0.8, 0);
 
-            // 4. Smooth: Whoosh (White Noise + BandPass)
+            // 4. Smooth: Whoosh
             noiseSmooth = new p5.Noise('white');
             noiseSmooth.amp(0);
             noiseSmooth.start();
@@ -352,13 +341,10 @@
             if (!audioStarted) return;
 
             let speed = dist(mouseX, mouseY, pmouseX, pmouseY);
-            // Cap speed for audio calculations
             speed = constrain(speed, 0, 100); 
 
-            // --- POWDER AUDIO ---
             if (currentMode === 'powder') {
                 let vol = map(speed, 0, 80, 0, 0.6, true);
-                
                 if (powderSound && powderSound.isLoaded()) {
                     powderSound.setVolume(vol, 0.1);
                     noisePowder.amp(0); 
@@ -372,24 +358,21 @@
                 }
             }
 
-            // --- SLIPPERY AUDIO ---
             if (currentMode === 'slippery') {
-                // Continuous scraping sound based on sliding speed
-                let vol = map(speed, 0, 50, 0, 0.15, true); // Lower volume for background scrape
+                // Background scrape volume
+                let vol = map(speed, 0, 50, 0, 0.12, true); 
                 noiseIceSlide.amp(vol, 0.1);
                 
-                // Pitch/Filter modulation for scraping texture
-                let freq = map(speed, 0, 100, 2000, 4000);
+                // Modulate filter freq based on speed for "shimmering" ice
+                let freq = map(speed, 0, 100, 1200, 2800);
                 filterIceSlide.freq(freq);
             } else {
                 noiseIceSlide.amp(0, 0.5);
             }
 
-            // --- SMOOTH AUDIO ---
             if (currentMode === 'smooth') {
                 let vol = map(speed, 0, 50, 0, 0.25, true);
                 noiseSmooth.amp(vol, 0.1);
-                
                 let filterFreq = map(speed, 0, 100, 200, 1200);
                 filterSmooth.freq(filterFreq);
             } else {
@@ -398,15 +381,11 @@
         }
 
         function draw() {
-            background(5, 5, 8); // Deep dark blue-black
+            background(5, 5, 8); 
 
-            // Handle Audio Updates based on movement
             updateAudio();
-
-            // Handle Global Footstep Logic
             handleFootsteps();
 
-            // Draw Modes
             if (currentMode === 'powder') {
                 drawPowder();
             } else if (currentMode === 'slippery') {
@@ -417,43 +396,29 @@
                 drawSmooth();
             }
 
-            // Draw Footprints on top
             drawFootprints();
-
-            // Draw Global Snowfall (Always on top)
             drawGlobalSnow();
         }
 
         function windowResized() {
             resizeCanvas(windowWidth, windowHeight);
-            initPacked(); // Re-init grid based on new size
+            initPacked();
         }
-
-        // --- Mode Switching Logic ---
 
         function setMode(mode) {
             currentMode = mode;
-            footprints = []; // Clear footprints on mode switch
-            
-            // Audio: Ensure clicking buttons starts audio context if not already
+            footprints = []; 
             if (!audioStarted) {
                 userStartAudio();
                 audioStarted = true;
-                
-                // Check custom sound init again if button clicked first
                 if (powderSound && powderSound.isLoaded()) {
                     powderSound.loop();
                     powderSound.setVolume(0);
                 }
-                
                 document.getElementById('audio-hint').style.opacity = '0';
             }
-
-            // UI Updates
             document.querySelectorAll('button').forEach(b => b.classList.remove('active'));
             document.getElementById(`btn-${mode}`).classList.add('active');
-
-            // Reset logic for specific modes
             if(mode === 'smooth') trail = [];
             if(mode === 'slippery') {
                 sliderBox.x = width/2;
@@ -462,10 +427,6 @@
                 sliderBox.vy = 0;
             }
         }
-
-        // ---------------------------------------------------------
-        // GLOBAL SNOWFALL SYSTEM
-        // ---------------------------------------------------------
 
         function initGlobalSnow() {
             for(let i = 0; i < 200; i++) {
@@ -481,73 +442,53 @@
 
         function drawGlobalSnow() {
             noStroke();
-            fill(255, 180); // Slight transparency
-            
+            fill(255, 180); 
             for(let flake of globalSnow) {
-                // Update
                 flake.y += flake.speed;
-                // Gentle sway using sine wave based on time and random offset
                 flake.x += Math.sin((frameCount * 0.01) + flake.offset) * 0.3;
-
-                // Wrap around screen
                 if(flake.y > height) {
                     flake.y = -10;
                     flake.x = Math.random() * width;
                 }
                 if(flake.x > width) flake.x = 0;
                 if(flake.x < 0) flake.x = width;
-
-                // Draw
                 ellipse(flake.x, flake.y, flake.size);
             }
         }
 
-        // ---------------------------------------------------------
-        // FOOTSTEP SYSTEM
-        // ---------------------------------------------------------
-
         function handleFootsteps() {
-            // Distance check
             let d = dist(mouseX, mouseY, lastStep.x, lastStep.y);
-            
-            // If mouse has moved enough for a step (approx 60px stride)
             if (d > 60) {
                 let angle = atan2(mouseY - lastStep.y, mouseX - lastStep.x);
-                
-                // Offset for left/right foot (perpendicular to direction)
                 let offsetDist = 15;
                 let offsetX = cos(angle + HALF_PI) * offsetDist * stepSide;
                 let offsetY = sin(angle + HALF_PI) * offsetDist * stepSide;
-
                 footprints.push({
                     x: mouseX + offsetX,
                     y: mouseY + offsetY,
                     angle: angle,
-                    life: 255, // Opacity/Life
+                    life: 255,
                     side: stepSide
                 });
-                
-                // --- TRIGGER AUDIO FOR STEPS ---
                 if (audioStarted) {
                      if (currentMode === 'packed') {
-                        // Dull Crunch
                         filterCrunch.freq(random(800, 1200));
                         envCrunch.play(noiseCrunch);
                     } else if (currentMode === 'slippery') {
-                        // Sharp Ice Crack/Step
-                        filterIceStep.freq(random(3000, 5000));
+                        // Resonant Ice Clink + Crack
+                        oscIceStep.freq(random(1800, 3200)); // High "Ting" freq
+                        envIceOsc.play(oscIceStep);
+                        
+                        filterIceStep.freq(random(2000, 3500));
                         envIceStep.play(noiseIceStep);
                     }
                 }
-
                 lastStep.x = mouseX;
                 lastStep.y = mouseY;
-                stepSide *= -1; // Switch feet
+                stepSide *= -1; 
             }
-
-            // Age footprints
             for (let i = footprints.length - 1; i >= 0; i--) {
-                footprints[i].life -= 1.5; // Fade speed
+                footprints[i].life -= 1.5; 
                 if (footprints[i].life <= 0) {
                     footprints.splice(i, 1);
                 }
@@ -560,112 +501,70 @@
                 push();
                 translate(fp.x, fp.y);
                 rotate(fp.angle);
-                
-                // Style based on mode
                 let alpha = map(fp.life, 0, 255, 0, 150);
-                
                 if (currentMode === 'packed') {
-                    // Light footprint on dark background
                     fill(255, 255, 255, map(fp.life, 0, 255, 0, 40));
                 } else if (currentMode === 'powder') {
-                    // Faint white drift trace
                     fill(255, 255, 255, map(fp.life, 0, 255, 0, 40));
                 } else if (currentMode === 'slippery') {
-                    // Icy scratch
                     fill(200, 240, 255, alpha);
                 } else {
-                    // Smooth / Generic
                     fill(255, 255, 255, alpha * 0.5);
                 }
-
-                // Draw Footprint shape (Simple Rounded Rect)
                 rect(0, 0, 12, 24, 6);
                 pop();
             }
         }
 
-
-        // ---------------------------------------------------------
-        // MODE 1: POWDER (Deep, floaty, displacement)
-        // ---------------------------------------------------------
-        
         function initPowder() {
             for (let i = 0; i < NUM_PARTICLES; i++) {
                 particles.push({
                     x: Math.random() * window.innerWidth,
                     y: Math.random() * window.innerHeight,
-                    baseX: Math.random() * window.innerWidth, // Target home
-                    baseY: Math.random() * window.innerHeight, // Target home
+                    baseX: Math.random() * window.innerWidth, 
+                    baseY: Math.random() * window.innerHeight, 
                     vx: 0,
                     vy: 0,
                     size: Math.random() * 3 + 1,
-                    drag: 0.92 + Math.random() * 0.05 // Varying drag for depth
+                    drag: 0.92 + Math.random() * 0.05
                 });
             }
         }
 
         function drawPowder() {
             noStroke();
-            fill(240, 245, 255);
-
-            // Large background Type
-            fill(255, 255, 255, 10);
-            textSize(width * 0.2);
-            textStyle(BOLD);
-            text("POWDER", width/2, height/2);
-
-            fill(240, 245, 255);
-            
             particles.forEach(p => {
-                // Distance from mouse
                 let dx = mouseX - p.x;
                 let dy = mouseY - p.y;
                 let dist = Math.sqrt(dx*dx + dy*dy);
                 let force = 0;
-
-                // Mouse Repulsion (The "Kick")
                 if (dist < 150) {
                     force = (150 - dist) / 150;
                     let angle = Math.atan2(dy, dx);
-                    // Push away violently
                     p.vx -= Math.cos(angle) * force * 5;
                     p.vy -= Math.sin(angle) * force * 5;
                 }
-
-                // Return to home (Gravity/Settling)
                 let homeDx = p.baseX - p.x;
                 let homeDy = p.baseY - p.y;
-                
-                // Very gentle return force
                 p.vx += homeDx * 0.002;
                 p.vy += homeDy * 0.002;
-
-                // Turbulence / Wind
                 p.vx += (Math.random() - 0.5) * 0.1;
                 p.vy += (Math.random() - 0.5) * 0.1;
-
-                // Physics update
                 p.x += p.vx;
                 p.y += p.vy;
                 p.vx *= p.drag;
                 p.vy *= p.drag;
-
-                // Draw
+                let speed = Math.abs(p.vx) + Math.abs(p.vy);
                 let alpha = map(dist, 0, 200, 255, 100);
-                fill(255, 255, 255, alpha);
+                alpha = constrain(alpha - (speed * 10), 50, 255);
+                fill(240, 245, 255, alpha);
                 ellipse(p.x, p.y, p.size);
             });
         }
 
-        // ---------------------------------------------------------
-        // MODE 2: SLIPPERY (Inertia, sliding, hard to stop)
-        // ---------------------------------------------------------
-
         function initSlippery() {
             sliderBox.x = window.innerWidth / 2;
             sliderBox.y = window.innerHeight / 2;
-            
-            // Create "Ice scratches"
             for(let i=0; i<50; i++) {
                 iceShards.push({
                     x: Math.random() * window.innerWidth,
@@ -678,68 +577,46 @@
         }
 
         function drawSlippery() {
-            // Background Ice Texture
-            stroke(200, 230, 255, 30);
+            push();
+            translate(width/2, height/2);
+            rotate(-PI/8);
+            let sheenX = (frameCount * 3) % (width * 2.5) - width;
+            noStroke();
+            for(let i=0; i<20; i++) {
+                 fill(255, map(i, 0, 20, 0, 5));
+                 rect(sheenX - width/2 + (i*10), 0, 20, height*2);
+            }
+            pop();
+
+            stroke(200, 230, 255, 40);
+            strokeWeight(1);
             noFill();
             iceShards.forEach(s => {
                 push();
                 translate(s.x, s.y);
                 rotate(s.rot);
-                rect(0,0, s.w, s.h);
+                line(-s.w/2, 0, s.w/2, 0); 
                 pop();
             });
 
-            // Physics Logic
-            // The box tries to follow the mouse, but has low friction
             let dx = mouseX - sliderBox.x;
             let dy = mouseY - sliderBox.y;
-
-            // Acceleration towards mouse
             let accX = dx * 0.005; 
             let accY = dy * 0.005;
-
             sliderBox.vx += accX;
             sliderBox.vy += accY;
-
-            // Low Friction (Ice simulation)
             sliderBox.vx *= 0.98; 
             sliderBox.vy *= 0.98;
-
             sliderBox.x += sliderBox.vx;
             sliderBox.y += sliderBox.vy;
 
-            // Visuals
-            
-            // 1. Prediction Line (Where it wants to go vs where it is)
             stroke(255, 100);
             line(sliderBox.x, sliderBox.y, mouseX, mouseY);
 
-            // 2. The Slider Element
             noStroke();
-            
-            // Glare effect
             fill(200, 240, 255, 20);
             ellipse(sliderBox.x, sliderBox.y, 200, 200);
-            fill(255);
-            textSize(60);
-            textStyle(BOLD);
-            
-            // Jitter the text slightly based on speed to simulate vibration
-            let jitterX = (Math.random() - 0.5) * (Math.abs(sliderBox.vx) * 0.5);
-            let jitterY = (Math.random() - 0.5) * (Math.abs(sliderBox.vy) * 0.5);
-            
-            text("SLIPPERY", sliderBox.x + jitterX, sliderBox.y + jitterY);
-            
-            // Warning text
-            textSize(12);
-            textStyle(NORMAL);
-            fill(100, 200, 255);
-            text("CAUTION: ICE", sliderBox.x, sliderBox.y + 40);
         }
-
-        // ---------------------------------------------------------
-        // MODE 3: PACKED (Crunchy, indentation, memory)
-        // ---------------------------------------------------------
 
         function initPacked() {
             cols = Math.ceil(window.innerWidth / scaleSize);
@@ -749,8 +626,8 @@
                 grid[i] = [];
                 for (let j = 0; j < rows; j++) {
                     grid[i][j] = {
-                        val: 0, // 0 = flat, 1 = compressed
-                        recoverSpeed: 0.005 // How fast snow recovers (very slow)
+                        val: 0, 
+                        recoverSpeed: 0.005 
                     };
                 }
             }
@@ -758,86 +635,58 @@
 
         function drawPacked() {
             noStroke();
-            
-            // Calculate mouse grid pos
             let mx = Math.floor(mouseX / scaleSize);
             let my = Math.floor(mouseY / scaleSize);
             let influenceRadius = 4;
 
-            // Update Grid
             for (let i = 0; i < cols; i++) {
                 for (let j = 0; j < rows; j++) {
                     let cell = grid[i][j];
-
-                    // Check distance to mouse
                     let d = dist(i, j, mx, my);
-                    
-                    // Compress if stepped on
                     if (d < influenceRadius) {
                         let force = map(d, 0, influenceRadius, 1, 0);
                         cell.val = Math.min(cell.val + force * 0.2, 1); 
                     }
-
-                    // Slowly recover (snow melting or resettling?)
                     if (cell.val > 0) {
                         cell.val -= cell.recoverSpeed;
                     } else {
                         cell.val = 0;
                     }
-
-                    // Draw
-                    // DARK MODE ADJUSTMENT:
-                    // Flat (val 0) = Near Black (matches background)
-                    // Compressed (val 1) = Slightly lighter blue/grey to show texture
-                    let brightness = map(cell.val, 0, 1, 10, 60); 
-                    
-                    // Add subtle blue tint logic for the dark theme
+                    let noiseVal = noise(i * 0.1, j * 0.1, frameCount * 0.005); 
+                    let baseBrightness = map(noiseVal, 0, 1, 8, 25);
+                    let brightness = baseBrightness + map(cell.val, 0, 1, 0, 40); 
                     fill(brightness, brightness + 2, brightness + 10);
-                    
-                    // Add outline to make the grid visible on black background
                     stroke(20, 20, 30);
                     strokeWeight(1);
-
-                    // Add some noise to position for "crunchy" texture
                     let nx = i * scaleSize + scaleSize/2;
                     let ny = j * scaleSize + scaleSize/2;
-                    
                     rect(nx, ny, scaleSize - 2, scaleSize - 2);
                 }
             }
-
-            // Overlay Text
-            noStroke(); // Reset stroke for text
-            fill(128, 128, 128, 128); // Grey with 50% opacity
-            textSize(100);
-            textStyle(BOLD);
-            text("PACKED", width/2, height/2);
         }
-
-        // ---------------------------------------------------------
-        // MODE 4: SMOOTH (Flow, curves, carving)
-        // ---------------------------------------------------------
 
         function initSmooth() {
             trail = [];
         }
 
         function drawSmooth() {
-            // Add current mouse position to trail
+            stroke(255, 5);
+            strokeWeight(1);
+            for(let y=0; y<height; y+=6) {
+                line(0, y, width, y);
+            }
+
             trail.push({x: mouseX, y: mouseY, vx: mouseX - pmouseX, vy: mouseY - pmouseY});
-            
             if (trail.length > maxTrail) {
                 trail.shift();
             }
 
-            // Draw fluid background lines
             strokeWeight(1);
             stroke(255, 30);
             noFill();
             for(let i = 0; i < height; i+= 40) {
                 beginShape();
                 for(let x = 0; x <= width; x += 50) {
-                    // Distort lines based on mouse X
                     let d = dist(x, i, mouseX, mouseY);
                     let offset = map(d, 0, 500, 50, 0, true);
                     curveVertex(x, i + offset);
@@ -845,42 +694,13 @@
                 endShape();
             }
 
-            // Draw the "Carve" ribbon
             noFill();
-            
-            // Outer Glow
             strokeWeight(20);
             stroke(200, 230, 255, 50);
             drawTrailCurve();
-
-            // Inner Core
             strokeWeight(6);
             stroke(255);
             drawTrailCurve();
-
-            // Text follows the curve
-            if(trail.length > 20) {
-                let midPoint = trail[Math.floor(trail.length/2)];
-                noStroke();
-                fill(255);
-                textSize(40);
-                textStyle(ITALIC);
-                
-                // Calculate angle for text rotation
-                let angle = Math.atan2(trail[trail.length-1].y - trail[0].y, trail[trail.length-1].x - trail[0].x);
-                
-                push();
-                translate(midPoint.x, midPoint.y);
-                // Smooth rotation
-                rotate(angle * 0.1); 
-                text("SMOOTH", 0, 0);
-                pop();
-            } else {
-                 fill(255, 100);
-                 textSize(40);
-                 textStyle(ITALIC);
-                 text("SMOOTH", width/2, height/2);
-            }
         }
 
         function drawTrailCurve() {
@@ -890,7 +710,6 @@
             }
             endShape();
         }
-
     </script>
 </body>
 </html>
