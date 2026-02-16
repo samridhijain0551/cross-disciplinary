@@ -226,6 +226,7 @@
 
         function preload() {
             // powderSound = loadSound('YOUR_LINK_HERE');
+            noiseIceSlide = loadSound('assets/slippery-sound.mp3');
         }
 
         function setup() {
@@ -283,9 +284,10 @@
 
             // 2. Slippery: "Icy" Glassy sounds
             // Slide scrape (Using Pink Noise for smoother texture)
-            noiseIceSlide = new p5.Noise('pink');
+
+
             noiseIceSlide.amp(0);
-            noiseIceSlide.start();
+            noiseIceSlide.play();
             filterIceSlide = new p5.BandPass();
             filterIceSlide.freq(1500); // Lower, less "hiss-heavy"
             filterIceSlide.res(8); // High resonance for "singing" ice
@@ -476,11 +478,11 @@
                         envCrunch.play(noiseCrunch);
                     } else if (currentMode === 'slippery') {
                         // Resonant Ice Clink + Crack
-                        oscIceStep.freq(random(1800, 3200)); // High "Ting" freq
-                        envIceOsc.play(oscIceStep);
+                        //oscIceStep.freq(random(1800, 3200)); // High "Ting" freq
+                        //envIceOsc.play(oscIceStep);
                         
-                        filterIceStep.freq(random(2000, 3500));
-                        envIceStep.play(noiseIceStep);
+                        //noiseIceSlide.freq(random(2000, 3500));
+                        envIceStep.play(noiseIceSlide);
                     }
                 }
                 lastStep.x = mouseX;
