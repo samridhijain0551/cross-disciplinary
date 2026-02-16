@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#050505">
+    <meta name="description" content="A kinetic interactive study of snow textures.">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>Kinetic Snow Study</title>
+    
+    <!-- Favicon (Snowflake emoji) -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>❄️</text></svg>">
+
+    <!-- p5.js Core -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+    <!-- p5.js Sound Addon -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/addons/p5.sound.min.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;800&display=swap');
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #050505;
+            font-family: 'Inter', sans-serif;
+            /* Prevent scrolling/pull-to-refresh on mobile for better interaction */
+            touch-action: none; 
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none; /* Let clicks pass through to canvas */
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start; 
+            padding: 2rem;
+            box-sizing: border-box;
+            z-index: 10;
+        }
+
+        header {
+            color: white;
+            text-transform: uppercase;
+            letter-spacing: -0.05em;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            margin: 0;
+            font-weight: 800;
+        }
+
+        .subtitle {
+            font-size: 0.8rem;
+            opacity: 0.7;
+            font-weight: 300;
+            letter-spacing: 0.1em;
+        }
+
+        /* Container for bottom elements */
+        .bottom-controls {
+            margin-top: auto; 
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1.5rem;
+            width: 100%;
+            pointer-events: auto;
+            padding-bottom: 1rem;
+        }
+
+        nav {
+            display: flex;
+            gap: 0.8rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        button {
+            background: rgba(10, 10, 15, 0.6);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255,255,255,0.15);
+            color: rgba(255,255,255,0.8);
+            padding: 0.7rem 1.8rem;
+            border-radius: 2rem;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            outline: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        button:hover {
+            background: rgba(255,255,255,0.15);
+            border-color: rgba(255,255,255,0.4);
+            transform: translateY(-2px);
+        }
+
+        button:active {
+            transform: translateY(0px);
+        }
+
+        button.active {
+            background: white;
+            color: black;
+            font-weight: 800;
+            border-color: white;
+            box-shadow: 0 0 20px rgba(255,255,255,0.2);
+        }
+
+        footer {
+            color: white;
+            font-size: 0.7rem;
+            opacity: 0.4;
+            text-align: center;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        canvas {
+            display: block;
+            outline: none;
+        }
+        
+        #audio-hint {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(5px);
+            padding: 1rem 2rem;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 30px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.5s;
+            z-index: 20;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="ui-layer">
+        <header>
+            <h1>SNOW STUDY</h1>
+            <div class="subtitle">Interact to feel the surface</div>
+        </header>
+        
+        <div id="audio-hint">Click anywhere to enable Sound</div>
+
+        <div class="bottom-controls">
+            <nav>
+                <button onclick="setMode('powder')" id="btn-powder" class="active">Powder</button>
+                <button onclick="setMode('slippery')" id="btn-slippery">Slippery</button>
+                <button onclick="setMode('packed')" id="btn-packed">Packed</button>
+                <button onclick="setMode('smooth')" id="btn-smooth">Smooth</button>
+            </nav>
+            <footer>
+                Move cursor to simulate steps
+            </footer>
+        </div>
+    </div>
+
+    <script>
+        let currentMode = 'powder';
+        let font;
+        let audioStarted = false;
+        
+        // --- Global Variables for Modes ---
+        
+        // Powder
+        let particles = [];
+        const NUM_PARTICLES = 1200;
+
+        // Slippery
+        let sliderBox = { x: 0, y: 0, vx: 0, vy: 0 };
+        let iceShards = [];
+
+        // Packed
+        let grid = [];
+        let cols, rows;
+        let scaleSize = 20;
+
+        // Smooth
+        let trail = [];
+        let maxTrail = 50;
+
+        // Footsteps System
+        let footprints = [];
+        let lastStep = { x: 0, y: 0 };
+        let stepSide = 1; // 1 for right, -1 for left
+
+        // Global Snowfall
+        let globalSnow = [];
+        
+        // --- Audio Variables ---
+        let powderSound; // Custom file variable
+        let noisePowder, filterPowder;
+        // Ice variables
+        let noiseIceSlide, filterIceSlide;
+        let noiseIceStep, envIceStep, filterIceStep;
+        
+        let noiseCrunch, envCrunch, filterCrunch;
+        let noiseSmooth, filterSmooth;
+
+        // --- PRELOAD FUNCTION FOR CUSTOM AUDIO ---
+        function preload() {
+            // ============================================================
+            // Add custom audio link here if needed:
+            // powderSound = loadSound('YOUR_LINK_HERE');
+            // ============================================================
+        }
+
+        function setup() {
+            // Create canvas that fills the window
+            let cnv = createCanvas(windowWidth, windowHeight);
+            cnv.style('display', 'block');
+            
+            textAlign(CENTER, CENTER);
+            rectMode(CENTER);
+            
+            // Initialize lastStep to center to prevent initial jump
+            lastStep.x = windowWidth / 2;
+            lastStep.y = windowHeight / 2;
+            
+            // Initialize Modes
+            initPowder();
+            initSlippery();
+            initPacked();
+            initSmooth();
+            
+            // Initialize Global Snow
+            initGlobalSnow();
+            
+            // Setup Audio Synthesizers
+            setupAudio();
+            
+            // Show hint if audio context needs a click
+            if (getAudioContext().state !== 'running') {
+                document.getElementById('audio-hint').style.opacity = '1';
+            }
+        }
+
+        function mousePressed() {
+            startAudioContext();
+        }
+        
+        function touchStarted() {
+            startAudioContext();
+            // Prevent default touch behaviors (scrolling)
+            return false;
+        }
+        
+        function startAudioContext() {
+            // Ensure audio context is running on user interaction
+            if (!audioStarted) {
+                userStartAudio();
+                audioStarted = true;
+                
+                // Play custom sound if it loaded
+                if (powderSound && powderSound.isLoaded()) {
+                    powderSound.loop();
+                    powderSound.setVolume(0);
+                }
+                
+                document.getElementById('audio-hint').style.opacity = '0';
+            }
+        }
+
+        function setupAudio() {
+            // 1. Powder: Deep rumble (Brown Noise + LowPass)
+            noisePowder = new p5.Noise('brown');
+            noisePowder.amp(0);
+            noisePowder.start();
+            filterPowder = new p5.LowPass();
+            filterPowder.freq(300);
+            noisePowder.disconnect();
+            noisePowder.connect(filterPowder);
+
+            // 2. Slippery: Scraping Ice + Cracking Steps
+            // Continuous Slide (Scraping)
+            noiseIceSlide = new p5.Noise('white');
+            noiseIceSlide.amp(0);
+            noiseIceSlide.start();
+            filterIceSlide = new p5.BandPass();
+            filterIceSlide.freq(2500);
+            filterIceSlide.res(5);
+            noiseIceSlide.disconnect();
+            noiseIceSlide.connect(filterIceSlide);
+
+            // Discrete Steps (Cracking)
+            noiseIceStep = new p5.Noise('white'); // White noise for brittle crack
+            noiseIceStep.start();
+            noiseIceStep.amp(0);
+            filterIceStep = new p5.HighPass();
+            filterIceStep.freq(3000); // Very high frequency
+            noiseIceStep.disconnect();
+            noiseIceStep.connect(filterIceStep);
+            
+            envIceStep = new p5.Envelope();
+            // Sharp attack, very short decay for "crack"
+            envIceStep.setADSR(0.001, 0.05, 0, 0.05); 
+            envIceStep.setRange(0.6, 0);
+
+            // 3. Packed: Crunch Steps (Pink Noise + Envelope)
+            noiseCrunch = new p5.Noise('pink'); // Pink noise for duller crunch
+            noiseCrunch.start();
+            noiseCrunch.amp(0); 
+            filterCrunch = new p5.HighPass();
+            filterCrunch.freq(1000); 
+            noiseCrunch.disconnect();
+            noiseCrunch.connect(filterCrunch);
+            
+            envCrunch = new p5.Envelope();
+            // Longer decay for "crunch"
+            envCrunch.setADSR(0.01, 0.15, 0, 0.1);
+            envCrunch.setRange(0.8, 0);
+
+            // 4. Smooth: Whoosh (White Noise + BandPass)
+            noiseSmooth = new p5.Noise('white');
+            noiseSmooth.amp(0);
+            noiseSmooth.start();
+            filterSmooth = new p5.BandPass();
+            filterSmooth.res(5); 
+            noiseSmooth.disconnect();
+            noiseSmooth.connect(filterSmooth);
+        }
+
+        function updateAudio() {
+            if (!audioStarted) return;
+
+            let speed = dist(mouseX, mouseY, pmouseX, pmouseY);
+            // Cap speed for audio calculations
+            speed = constrain(speed, 0, 100); 
+
+            // --- POWDER AUDIO ---
+            if (currentMode === 'powder') {
+                let vol = map(speed, 0, 80, 0, 0.6, true);
+                
+                if (powderSound && powderSound.isLoaded()) {
+                    powderSound.setVolume(vol, 0.1);
+                    noisePowder.amp(0); 
+                } else {
+                    noisePowder.amp(vol, 0.1); 
+                }
+            } else {
+                noisePowder.amp(0, 0.5); 
+                if (powderSound && powderSound.isLoaded()) {
+                    powderSound.setVolume(0, 0.5);
+                }
+            }
+
+            // --- SLIPPERY AUDIO ---
+            if (currentMode === 'slippery') {
+                // Continuous scraping sound based on sliding speed
+                let vol = map(speed, 0, 50, 0, 0.15, true); // Lower volume for background scrape
+                noiseIceSlide.amp(vol, 0.1);
+                
+                // Pitch/Filter modulation for scraping texture
+                let freq = map(speed, 0, 100, 2000, 4000);
+                filterIceSlide.freq(freq);
+            } else {
+                noiseIceSlide.amp(0, 0.5);
+            }
+
+            // --- SMOOTH AUDIO ---
+            if (currentMode === 'smooth') {
+                let vol = map(speed, 0, 50, 0, 0.25, true);
+                noiseSmooth.amp(vol, 0.1);
+                
+                let filterFreq = map(speed, 0, 100, 200, 1200);
+                filterSmooth.freq(filterFreq);
+            } else {
+                noiseSmooth.amp(0, 0.5);
+            }
+        }
+
+        function draw() {
+            background(5, 5, 8); // Deep dark blue-black
+
+            // Handle Audio Updates based on movement
+            updateAudio();
+
+            // Handle Global Footstep Logic
+            handleFootsteps();
+
+            // Draw Modes
+            if (currentMode === 'powder') {
+                drawPowder();
+            } else if (currentMode === 'slippery') {
+                drawSlippery();
+            } else if (currentMode === 'packed') {
+                drawPacked();
+            } else if (currentMode === 'smooth') {
+                drawSmooth();
+            }
+
+            // Draw Footprints on top
+            drawFootprints();
+
+            // Draw Global Snowfall (Always on top)
+            drawGlobalSnow();
+        }
+
+        function windowResized() {
+            resizeCanvas(windowWidth, windowHeight);
+            initPacked(); // Re-init grid based on new size
+        }
+
+        // --- Mode Switching Logic ---
+
+        function setMode(mode) {
+            currentMode = mode;
+            footprints = []; // Clear footprints on mode switch
+            
+            // Audio: Ensure clicking buttons starts audio context if not already
+            if (!audioStarted) {
+                userStartAudio();
+                audioStarted = true;
+                
+                // Check custom sound init again if button clicked first
+                if (powderSound && powderSound.isLoaded()) {
+                    powderSound.loop();
+                    powderSound.setVolume(0);
+                }
+                
+                document.getElementById('audio-hint').style.opacity = '0';
+            }
+
+            // UI Updates
+            document.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+            document.getElementById(`btn-${mode}`).classList.add('active');
+
+            // Reset logic for specific modes
+            if(mode === 'smooth') trail = [];
+            if(mode === 'slippery') {
+                sliderBox.x = width/2;
+                sliderBox.y = height/2;
+                sliderBox.vx = 0;
+                sliderBox.vy = 0;
+            }
+        }
+
+        // ---------------------------------------------------------
+        // GLOBAL SNOWFALL SYSTEM
+        // ---------------------------------------------------------
+
+        function initGlobalSnow() {
+            for(let i = 0; i < 200; i++) {
+                globalSnow.push({
+                    x: Math.random() * window.innerWidth,
+                    y: Math.random() * window.innerHeight,
+                    size: Math.random() * 2 + 0.5,
+                    speed: Math.random() * 1 + 0.5,
+                    offset: Math.random() * 100
+                });
+            }
+        }
+
+        function drawGlobalSnow() {
+            noStroke();
+            fill(255, 180); // Slight transparency
+            
+            for(let flake of globalSnow) {
+                // Update
+                flake.y += flake.speed;
+                // Gentle sway using sine wave based on time and random offset
+                flake.x += Math.sin((frameCount * 0.01) + flake.offset) * 0.3;
+
+                // Wrap around screen
+                if(flake.y > height) {
+                    flake.y = -10;
+                    flake.x = Math.random() * width;
+                }
+                if(flake.x > width) flake.x = 0;
+                if(flake.x < 0) flake.x = width;
+
+                // Draw
+                ellipse(flake.x, flake.y, flake.size);
+            }
+        }
+
+        // ---------------------------------------------------------
+        // FOOTSTEP SYSTEM
+        // ---------------------------------------------------------
+
+        function handleFootsteps() {
+            // Distance check
+            let d = dist(mouseX, mouseY, lastStep.x, lastStep.y);
+            
+            // If mouse has moved enough for a step (approx 60px stride)
+            if (d > 60) {
+                let angle = atan2(mouseY - lastStep.y, mouseX - lastStep.x);
+                
+                // Offset for left/right foot (perpendicular to direction)
+                let offsetDist = 15;
+                let offsetX = cos(angle + HALF_PI) * offsetDist * stepSide;
+                let offsetY = sin(angle + HALF_PI) * offsetDist * stepSide;
+
+                footprints.push({
+                    x: mouseX + offsetX,
+                    y: mouseY + offsetY,
+                    angle: angle,
+                    life: 255, // Opacity/Life
+                    side: stepSide
+                });
+                
+                // --- TRIGGER AUDIO FOR STEPS ---
+                if (audioStarted) {
+                     if (currentMode === 'packed') {
+                        // Dull Crunch
+                        filterCrunch.freq(random(800, 1200));
+                        envCrunch.play(noiseCrunch);
+                    } else if (currentMode === 'slippery') {
+                        // Sharp Ice Crack/Step
+                        filterIceStep.freq(random(3000, 5000));
+                        envIceStep.play(noiseIceStep);
+                    }
+                }
+
+                lastStep.x = mouseX;
+                lastStep.y = mouseY;
+                stepSide *= -1; // Switch feet
+            }
+
+            // Age footprints
+            for (let i = footprints.length - 1; i >= 0; i--) {
+                footprints[i].life -= 1.5; // Fade speed
+                if (footprints[i].life <= 0) {
+                    footprints.splice(i, 1);
+                }
+            }
+        }
+
+        function drawFootprints() {
+            noStroke();
+            for (let fp of footprints) {
+                push();
+                translate(fp.x, fp.y);
+                rotate(fp.angle);
+                
+                // Style based on mode
+                let alpha = map(fp.life, 0, 255, 0, 150);
+                
+                if (currentMode === 'packed') {
+                    // Light footprint on dark background
+                    fill(255, 255, 255, map(fp.life, 0, 255, 0, 40));
+                } else if (currentMode === 'powder') {
+                    // Faint white drift trace
+                    fill(255, 255, 255, map(fp.life, 0, 255, 0, 40));
+                } else if (currentMode === 'slippery') {
+                    // Icy scratch
+                    fill(200, 240, 255, alpha);
+                } else {
+                    // Smooth / Generic
+                    fill(255, 255, 255, alpha * 0.5);
+                }
+
+                // Draw Footprint shape (Simple Rounded Rect)
+                rect(0, 0, 12, 24, 6);
+                pop();
+            }
+        }
+
+
+        // ---------------------------------------------------------
+        // MODE 1: POWDER (Deep, floaty, displacement)
+        // ---------------------------------------------------------
+        
+        function initPowder() {
+            for (let i = 0; i < NUM_PARTICLES; i++) {
+                particles.push({
+                    x: Math.random() * window.innerWidth,
+                    y: Math.random() * window.innerHeight,
+                    baseX: Math.random() * window.innerWidth, // Target home
+                    baseY: Math.random() * window.innerHeight, // Target home
+                    vx: 0,
+                    vy: 0,
+                    size: Math.random() * 3 + 1,
+                    drag: 0.92 + Math.random() * 0.05 // Varying drag for depth
+                });
+            }
+        }
+
+        function drawPowder() {
+            noStroke();
+            fill(240, 245, 255);
+
+            // Large background Type
+            fill(255, 255, 255, 10);
+            textSize(width * 0.2);
+            textStyle(BOLD);
+            text("POWDER", width/2, height/2);
+
+            fill(240, 245, 255);
+            
+            particles.forEach(p => {
+                // Distance from mouse
+                let dx = mouseX - p.x;
+                let dy = mouseY - p.y;
+                let dist = Math.sqrt(dx*dx + dy*dy);
+                let force = 0;
+
+                // Mouse Repulsion (The "Kick")
+                if (dist < 150) {
+                    force = (150 - dist) / 150;
+                    let angle = Math.atan2(dy, dx);
+                    // Push away violently
+                    p.vx -= Math.cos(angle) * force * 5;
+                    p.vy -= Math.sin(angle) * force * 5;
+                }
+
+                // Return to home (Gravity/Settling)
+                let homeDx = p.baseX - p.x;
+                let homeDy = p.baseY - p.y;
+                
+                // Very gentle return force
+                p.vx += homeDx * 0.002;
+                p.vy += homeDy * 0.002;
+
+                // Turbulence / Wind
+                p.vx += (Math.random() - 0.5) * 0.1;
+                p.vy += (Math.random() - 0.5) * 0.1;
+
+                // Physics update
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vx *= p.drag;
+                p.vy *= p.drag;
+
+                // Draw
+                let alpha = map(dist, 0, 200, 255, 100);
+                fill(255, 255, 255, alpha);
+                ellipse(p.x, p.y, p.size);
+            });
+        }
+
+        // ---------------------------------------------------------
+        // MODE 2: SLIPPERY (Inertia, sliding, hard to stop)
+        // ---------------------------------------------------------
+
+        function initSlippery() {
+            sliderBox.x = window.innerWidth / 2;
+            sliderBox.y = window.innerHeight / 2;
+            
+            // Create "Ice scratches"
+            for(let i=0; i<50; i++) {
+                iceShards.push({
+                    x: Math.random() * window.innerWidth,
+                    y: Math.random() * window.innerHeight,
+                    w: Math.random() * 100 + 20,
+                    h: Math.random() * 2 + 1,
+                    rot: Math.random() * PI
+                });
+            }
+        }
+
+        function drawSlippery() {
+            // Background Ice Texture
+            stroke(200, 230, 255, 30);
+            noFill();
+            iceShards.forEach(s => {
+                push();
+                translate(s.x, s.y);
+                rotate(s.rot);
+                rect(0,0, s.w, s.h);
+                pop();
+            });
+
+            // Physics Logic
+            // The box tries to follow the mouse, but has low friction
+            let dx = mouseX - sliderBox.x;
+            let dy = mouseY - sliderBox.y;
+
+            // Acceleration towards mouse
+            let accX = dx * 0.005; 
+            let accY = dy * 0.005;
+
+            sliderBox.vx += accX;
+            sliderBox.vy += accY;
+
+            // Low Friction (Ice simulation)
+            sliderBox.vx *= 0.98; 
+            sliderBox.vy *= 0.98;
+
+            sliderBox.x += sliderBox.vx;
+            sliderBox.y += sliderBox.vy;
+
+            // Visuals
+            
+            // 1. Prediction Line (Where it wants to go vs where it is)
+            stroke(255, 100);
+            line(sliderBox.x, sliderBox.y, mouseX, mouseY);
+
+            // 2. The Slider Element
+            noStroke();
+            
+            // Glare effect
+            fill(200, 240, 255, 20);
+            ellipse(sliderBox.x, sliderBox.y, 200, 200);
+            fill(255);
+            textSize(60);
+            textStyle(BOLD);
+            
+            // Jitter the text slightly based on speed to simulate vibration
+            let jitterX = (Math.random() - 0.5) * (Math.abs(sliderBox.vx) * 0.5);
+            let jitterY = (Math.random() - 0.5) * (Math.abs(sliderBox.vy) * 0.5);
+            
+            text("SLIPPERY", sliderBox.x + jitterX, sliderBox.y + jitterY);
+            
+            // Warning text
+            textSize(12);
+            textStyle(NORMAL);
+            fill(100, 200, 255);
+            text("CAUTION: ICE", sliderBox.x, sliderBox.y + 40);
+        }
+
+        // ---------------------------------------------------------
+        // MODE 3: PACKED (Crunchy, indentation, memory)
+        // ---------------------------------------------------------
+
+        function initPacked() {
+            cols = Math.ceil(window.innerWidth / scaleSize);
+            rows = Math.ceil(window.innerHeight / scaleSize);
+            grid = [];
+            for (let i = 0; i < cols; i++) {
+                grid[i] = [];
+                for (let j = 0; j < rows; j++) {
+                    grid[i][j] = {
+                        val: 0, // 0 = flat, 1 = compressed
+                        recoverSpeed: 0.005 // How fast snow recovers (very slow)
+                    };
+                }
+            }
+        }
+
+        function drawPacked() {
+            noStroke();
+            
+            // Calculate mouse grid pos
+            let mx = Math.floor(mouseX / scaleSize);
+            let my = Math.floor(mouseY / scaleSize);
+            let influenceRadius = 4;
+
+            // Update Grid
+            for (let i = 0; i < cols; i++) {
+                for (let j = 0; j < rows; j++) {
+                    let cell = grid[i][j];
+
+                    // Check distance to mouse
+                    let d = dist(i, j, mx, my);
+                    
+                    // Compress if stepped on
+                    if (d < influenceRadius) {
+                        let force = map(d, 0, influenceRadius, 1, 0);
+                        cell.val = Math.min(cell.val + force * 0.2, 1); 
+                    }
+
+                    // Slowly recover (snow melting or resettling?)
+                    if (cell.val > 0) {
+                        cell.val -= cell.recoverSpeed;
+                    } else {
+                        cell.val = 0;
+                    }
+
+                    // Draw
+                    // DARK MODE ADJUSTMENT:
+                    // Flat (val 0) = Near Black (matches background)
+                    // Compressed (val 1) = Slightly lighter blue/grey to show texture
+                    let brightness = map(cell.val, 0, 1, 10, 60); 
+                    
+                    // Add subtle blue tint logic for the dark theme
+                    fill(brightness, brightness + 2, brightness + 10);
+                    
+                    // Add outline to make the grid visible on black background
+                    stroke(20, 20, 30);
+                    strokeWeight(1);
+
+                    // Add some noise to position for "crunchy" texture
+                    let nx = i * scaleSize + scaleSize/2;
+                    let ny = j * scaleSize + scaleSize/2;
+                    
+                    rect(nx, ny, scaleSize - 2, scaleSize - 2);
+                }
+            }
+
+            // Overlay Text
+            noStroke(); // Reset stroke for text
+            fill(128, 128, 128, 128); // Grey with 50% opacity
+            textSize(100);
+            textStyle(BOLD);
+            text("PACKED", width/2, height/2);
+        }
+
+        // ---------------------------------------------------------
+        // MODE 4: SMOOTH (Flow, curves, carving)
+        // ---------------------------------------------------------
+
+        function initSmooth() {
+            trail = [];
+        }
+
+        function drawSmooth() {
+            // Add current mouse position to trail
+            trail.push({x: mouseX, y: mouseY, vx: mouseX - pmouseX, vy: mouseY - pmouseY});
+            
+            if (trail.length > maxTrail) {
+                trail.shift();
+            }
+
+            // Draw fluid background lines
+            strokeWeight(1);
+            stroke(255, 30);
+            noFill();
+            for(let i = 0; i < height; i+= 40) {
+                beginShape();
+                for(let x = 0; x <= width; x += 50) {
+                    // Distort lines based on mouse X
+                    let d = dist(x, i, mouseX, mouseY);
+                    let offset = map(d, 0, 500, 50, 0, true);
+                    curveVertex(x, i + offset);
+                }
+                endShape();
+            }
+
+            // Draw the "Carve" ribbon
+            noFill();
+            
+            // Outer Glow
+            strokeWeight(20);
+            stroke(200, 230, 255, 50);
+            drawTrailCurve();
+
+            // Inner Core
+            strokeWeight(6);
+            stroke(255);
+            drawTrailCurve();
+
+            // Text follows the curve
+            if(trail.length > 20) {
+                let midPoint = trail[Math.floor(trail.length/2)];
+                noStroke();
+                fill(255);
+                textSize(40);
+                textStyle(ITALIC);
+                
+                // Calculate angle for text rotation
+                let angle = Math.atan2(trail[trail.length-1].y - trail[0].y, trail[trail.length-1].x - trail[0].x);
+                
+                push();
+                translate(midPoint.x, midPoint.y);
+                // Smooth rotation
+                rotate(angle * 0.1); 
+                text("SMOOTH", 0, 0);
+                pop();
+            } else {
+                 fill(255, 100);
+                 textSize(40);
+                 textStyle(ITALIC);
+                 text("SMOOTH", width/2, height/2);
+            }
+        }
+
+        function drawTrailCurve() {
+            beginShape();
+            for (let i = 0; i < trail.length; i++) {
+                curveVertex(trail[i].x, trail[i].y);
+            }
+            endShape();
+        }
+
+    </script>
+</body>
+</html>
