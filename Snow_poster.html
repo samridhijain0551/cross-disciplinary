@@ -4,169 +4,115 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#050505">
-    <meta name="description" content="A kinetic interactive study of snow textures.">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>Kinetic Snow Study</title>
+    <title>SNOW STUDY - Interactive Projection</title>
     
-    <!-- Favicon (Snowflake emoji) -->
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>❄️</text></svg>">
 
-    <!-- p5.js Core -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
-    <!-- p5.js Sound Addon -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/addons/p5.sound.min.js"></script>
     
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;800&display=swap');
 
         body, html {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            background-color: #050505;
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            overflow: hidden; background-color: #050505;
             font-family: 'Inter', sans-serif;
-            touch-action: none; 
-            user-select: none;
-            -webkit-user-select: none;
+            touch-action: none; user-select: none;
         }
 
         #ui-layer {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none; 
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-start; 
-            padding: 2rem;
-            box-sizing: border-box;
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; display: flex; flex-direction: column;
+            justify-content: space-between; padding: 3rem; box-sizing: border-box;
             z-index: 10;
         }
 
-        header {
-            color: white;
-            text-transform: uppercase;
-            letter-spacing: -0.05em;
-            text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+        header { color: white; text-transform: uppercase; letter-spacing: -0.05em; }
+        h1 { font-size: 2rem; margin: 0; font-weight: 800; }
+        .subtitle { font-size: 0.9rem; opacity: 0.6; font-weight: 300; letter-spacing: 0.2em; }
+
+        /* The Idle Overlay */
+        #instruction-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.4);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            color: white; text-align: center; transition: opacity 1s ease;
+            z-index: 15; pointer-events: none; opacity: 0;
         }
 
-        h1 {
-            font-size: 1.5rem;
-            margin: 0;
-            font-weight: 800;
+        .instruction-box {
+            padding: 2rem; border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 40px; backdrop-filter: blur(10px);
+            max-width: 400px;
         }
 
-        .subtitle {
-            font-size: 0.8rem;
-            opacity: 0.7;
-            font-weight: 300;
-            letter-spacing: 0.1em;
+        .instruction-box h2 { font-weight: 800; text-transform: uppercase; margin-bottom: 0.5rem; }
+        .instruction-box p { font-size: 1rem; opacity: 0.8; line-height: 1.5; }
+
+        .mouse-icon {
+            width: 30px; height: 50px; border: 2px solid white; border-radius: 15px;
+            margin: 1rem auto; position: relative;
         }
+        .mouse-icon::after {
+            content: ''; position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+            width: 4px; height: 8px; background: white; border-radius: 2px;
+            animation: scroll 2s infinite;
+        }
+
+        @keyframes scroll { 0% { opacity: 1; top: 5px; } 100% { opacity: 0; top: 25px; } }
 
         .bottom-controls {
-            margin-top: auto; 
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 1.5rem;
-            width: 100%;
-            pointer-events: auto;
-            padding-bottom: 1rem;
+            margin-top: auto; display: flex; flex-direction: column;
+            align-items: center; gap: 1.5rem; width: 100%;
+            pointer-events: auto; padding-bottom: 1rem;
         }
 
-        nav {
-            display: flex;
-            gap: 0.8rem;
-            flex-wrap: wrap;
-            justify-content: center;
-        }
+        nav { display: flex; gap: 0.8rem; flex-wrap: wrap; justify-content: center; }
 
         button {
-            background: rgba(10, 10, 15, 0.6);
-            backdrop-filter: blur(8px);
-            border: 1px solid rgba(255,255,255,0.15);
-            color: rgba(255,255,255,0.8);
-            padding: 0.7rem 1.8rem;
-            border-radius: 2rem;
-            cursor: pointer;
-            font-family: 'Inter', sans-serif;
-            font-size: 0.85rem;
-            font-weight: 500;
-            transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            outline: none;
-            -webkit-tap-highlight-color: transparent;
+            background: rgba(10, 10, 15, 0.7); backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.15); color: rgba(255,255,255,0.7);
+            padding: 0.8rem 2rem; border-radius: 2rem; cursor: pointer;
+            font-family: 'Inter', sans-serif; font-size: 0.9rem; font-weight: 500;
+            transition: all 0.3s ease; text-transform: uppercase; letter-spacing: 0.05em;
         }
 
-        button:hover {
-            background: rgba(255,255,255,0.15);
-            border-color: rgba(255,255,255,0.4);
-            transform: translateY(-2px);
-        }
+        button:hover { background: rgba(255,255,255,0.2); border-color: white; transform: scale(1.05); }
+        button.active { background: white; color: black; font-weight: 800; }
 
-        button:active {
-            transform: translateY(0px);
-        }
-
-        button.active {
-            background: white;
-            color: black;
-            font-weight: 800;
-            border-color: white;
-            box-shadow: 0 0 20px rgba(255,255,255,0.2);
-        }
-
-        footer {
-            color: white;
-            font-size: 0.7rem;
-            opacity: 0.4;
-            text-align: center;
-            letter-spacing: 0.05em;
-            text-transform: uppercase;
-        }
-
-        canvas {
-            display: block;
-            outline: none;
-        }
-        
         #audio-hint {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: white;
-            background: rgba(0,0,0,0.6);
-            backdrop-filter: blur(5px);
-            padding: 1rem 2rem;
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 30px;
-            pointer-events: none;
-            opacity: 0;
-            transition: opacity 0.5s;
-            z-index: 20;
-            text-transform: uppercase;
-            font-size: 0.8rem;
-            font-weight: 600;
-            letter-spacing: 0.1em;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+            position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%);
+            color: white; background: white; color: black;
+            padding: 1.2rem 2.5rem; border-radius: 40px; pointer-events: none;
+            opacity: 0; transition: opacity 0.5s; z-index: 20;
+            text-transform: uppercase; font-size: 0.9rem; font-weight: 800;
+            letter-spacing: 0.1em; animation: pulse 2s infinite;
         }
+
+        @keyframes pulse { 0% { transform: translate(-50%, -50%) scale(1); } 50% { transform: translate(-50%, -50%) scale(1.05); } 100% { transform: translate(-50%, -50%) scale(1); } }
+
+        canvas { display: block; }
     </style>
 </head>
 <body>
 
+    <div id="instruction-overlay">
+        <div class="instruction-box">
+            <div class="mouse-icon"></div>
+            <h2>Step into the Snow</h2>
+            <p>Move the cursor to explore Prospect Park's textures.<br>Choose a surface below to begin.</p>
+        </div>
+    </div>
+
     <div id="ui-layer">
         <header>
             <h1>SNOW STUDY</h1>
-            <div class="subtitle">Interact to feel the surface</div>
+            <div class="subtitle">The kinetic sounds of snow</div>
         </header>
         
-        <div id="audio-hint">Click anywhere to enable Sound</div>
+        <div id="audio-hint">Click to Start Audio</div>
 
         <div class="bottom-controls">
             <nav>
@@ -175,54 +121,31 @@
                 <button onclick="setMode('packed')" id="btn-packed">Packed</button>
                 <button onclick="setMode('smooth')" id="btn-smooth">Smooth</button>
             </nav>
-            <footer>
-                Move cursor to simulate steps
-            </footer>
         </div>
     </div>
 
     <script>
         let currentMode = 'powder';
-        let font;
         let audioStarted = false;
-        
-        // --- Global Variables for Modes ---
-        
-        // Powder
-        let particles = [];
-        const NUM_PARTICLES = 1200;
+        let lastInteractionTime = 0;
+        let idleLimit = 10000; // 10 seconds
 
-        // Slippery
+        // Global Vars
+        let particles = [];
         let sliderBox = { x: 0, y: 0, vx: 0, vy: 0 };
         let iceShards = [];
-
-        // Packed
         let grid = [];
-        let cols, rows;
         let scaleSize = 20;
-
-        // Smooth
         let trail = [];
-        let maxTrail = 50;
-
-        // Footsteps System
         let footprints = [];
         let lastStep = { x: 0, y: 0 };
-        let stepSide = 1; // 1 for right, -1 for left
-
-        // Global Snowfall
+        let stepSide = 1;
         let globalSnow = [];
-        
-        // --- Audio Variables ---
-        let powderSound; 
-        let noisePowder, filterPowder;
-        // Ice variables (Improved for "Glassy" feel)
-        let noiseIceSlide, filterIceSlide;
-        let noiseIceStep, envIceStep, filterIceStep;
-        let oscIceStep, envIceOsc;
-        
-        let noiseCrunch, envCrunch, filterCrunch;
-        let noiseSmooth, filterSmooth;
+
+        // Audio
+        let powderSound, noisePowder, filterPowder;
+        let noiseIceSlide, filterIceSlide, noiseIceStep, envIceStep, filterIceStep, oscIceStep, envIceOsc;
+        let noiseCrunch, envCrunch, filterCrunch, noiseSmooth, filterSmooth;
 
         function preload() {
             // powderSound = loadSound('YOUR_LINK_HERE');
@@ -230,488 +153,208 @@
         }
 
         function setup() {
-            let cnv = createCanvas(windowWidth, windowHeight);
-            cnv.style('display', 'block');
-            
+            createCanvas(windowWidth, windowHeight);
             textAlign(CENTER, CENTER);
             rectMode(CENTER);
-            
-            lastStep.x = windowWidth / 2;
-            lastStep.y = windowHeight / 2;
-            
-            initPowder();
-            initSlippery();
-            initPacked();
-            initSmooth();
-            initGlobalSnow();
+            lastStep.x = width/2; lastStep.y = height/2;
+            initPowder(); initSlippery(); initPacked(); initSmooth(); initGlobalSnow();
             setupAudio();
-            
-            if (getAudioContext().state !== 'running') {
-                document.getElementById('audio-hint').style.opacity = '1';
-            }
+            lastInteractionTime = millis();
         }
 
-        function mousePressed() {
-            startAudioContext();
-        }
-        
-        function touchStarted() {
-            startAudioContext();
-            return false;
-        }
-        
+        function mouseMoved() { lastInteractionTime = millis(); }
+        function mousePressed() { lastInteractionTime = millis(); startAudioContext(); }
+        function touchStarted() { lastInteractionTime = millis(); startAudioContext(); return false; }
+
         function startAudioContext() {
             if (!audioStarted) {
-                userStartAudio();
-                audioStarted = true;
-                if (powderSound && powderSound.isLoaded()) {
-                    powderSound.loop();
-                    powderSound.setVolume(0);
-                }
+                userStartAudio(); audioStarted = true;
                 document.getElementById('audio-hint').style.opacity = '0';
             }
         }
 
-        function setupAudio() {
-            // 1. Powder: Deep rumble
-            noisePowder = new p5.Noise('brown');
-            noisePowder.amp(0);
-            noisePowder.start();
-            filterPowder = new p5.LowPass();
-            filterPowder.freq(300);
-            noisePowder.disconnect();
-            noisePowder.connect(filterPowder);
-
-            // 2. Slippery: "Icy" Glassy sounds
-            // Slide scrape (Using Pink Noise for smoother texture)
-
-
-            noiseIceSlide.amp(0);
-            noiseIceSlide.play();
-            filterIceSlide = new p5.BandPass();
-            filterIceSlide.freq(1500); // Lower, less "hiss-heavy"
-            filterIceSlide.res(8); // High resonance for "singing" ice
-            noiseIceSlide.disconnect();
-            noiseIceSlide.connect(filterIceSlide);
-
-            // Impact noise (Brittle crack)
-            noiseIceStep = new p5.Noise('pink'); 
-            noiseIceStep.start();
-            noiseIceStep.amp(0);
-            filterIceStep = new p5.HighPass();
-            filterIceStep.freq(2000); 
-            noiseIceStep.disconnect();
-            noiseIceStep.connect(filterIceStep);
-            
-            envIceStep = new p5.Envelope();
-            envIceStep.setADSR(0.005, 0.08, 0, 0.02); 
-            envIceStep.setRange(0.4, 0);
-
-            // Impact tone (The "Clink" of ice)
-            oscIceStep = new p5.Oscillator('sine');
-            oscIceStep.start();
-            oscIceStep.amp(0);
-            
-            envIceOsc = new p5.Envelope();
-            envIceOsc.setADSR(0.001, 0.1, 0, 0.1);
-            envIceOsc.setRange(0.2, 0);
-
-            // 3. Packed: Crunch Steps
-            noiseCrunch = new p5.Noise('pink'); 
-            noiseCrunch.start();
-            noiseCrunch.amp(0); 
-            filterCrunch = new p5.HighPass();
-            filterCrunch.freq(1000); 
-            noiseCrunch.disconnect();
-            noiseCrunch.connect(filterCrunch);
-            
-            envCrunch = new p5.Envelope();
-            envCrunch.setADSR(0.01, 0.15, 0, 0.1);
-            envCrunch.setRange(0.8, 0);
-
-            // 4. Smooth: Whoosh
-            noiseSmooth = new p5.Noise('white');
-            noiseSmooth.amp(0);
-            noiseSmooth.start();
-            filterSmooth = new p5.BandPass();
-            filterSmooth.res(5); 
-            noiseSmooth.disconnect();
-            noiseSmooth.connect(filterSmooth);
-        }
-
-        function updateAudio() {
-            if (!audioStarted) return;
-
-            let speed = dist(mouseX, mouseY, pmouseX, pmouseY);
-            speed = constrain(speed, 0, 100); 
-
-            if (currentMode === 'powder') {
-                let vol = map(speed, 0, 80, 0, 0.6, true);
-                if (powderSound && powderSound.isLoaded()) {
-                    powderSound.setVolume(vol, 0.1);
-                    noisePowder.amp(0); 
-                } else {
-                    noisePowder.amp(vol, 0.1); 
-                }
-            } else {
-                noisePowder.amp(0, 0.5); 
-                if (powderSound && powderSound.isLoaded()) {
-                    powderSound.setVolume(0, 0.5);
-                }
-            }
-
-            if (currentMode === 'slippery') {
-                // Background scrape volume
-                let vol = map(speed, 0, 50, 0, 0.12, true); 
-                noiseIceSlide.amp(vol, 0.1);
-                
-                // Modulate filter freq based on speed for "shimmering" ice
-                let freq = map(speed, 0, 100, 1200, 2800);
-                filterIceSlide.freq(freq);
-            } else {
-                noiseIceSlide.amp(0, 0.5);
-            }
-
-            if (currentMode === 'smooth') {
-                let vol = map(speed, 0, 50, 0, 0.25, true);
-                noiseSmooth.amp(vol, 0.1);
-                let filterFreq = map(speed, 0, 100, 200, 1200);
-                filterSmooth.freq(filterFreq);
-            } else {
-                noiseSmooth.amp(0, 0.5);
-            }
-        }
-
         function draw() {
-            background(5, 5, 8); 
-
+            background(5, 5, 8);
             updateAudio();
             handleFootsteps();
 
-            if (currentMode === 'powder') {
-                drawPowder();
-            } else if (currentMode === 'slippery') {
-                drawSlippery();
-            } else if (currentMode === 'packed') {
-                drawPacked();
-            } else if (currentMode === 'smooth') {
-                drawSmooth();
+            // Handle Idle State
+            let timeSinceAction = millis() - lastInteractionTime;
+            let overlay = document.getElementById('instruction-overlay');
+            let hint = document.getElementById('audio-hint');
+            
+            if (timeSinceAction > idleLimit) {
+                overlay.style.opacity = '1';
+                if (!audioStarted) hint.style.opacity = '1';
+            } else {
+                overlay.style.opacity = '0';
+                hint.style.opacity = '0';
             }
+
+            // Draw current mode
+            if (currentMode === 'powder') drawPowder();
+            else if (currentMode === 'slippery') drawSlippery();
+            else if (currentMode === 'packed') drawPacked();
+            else if (currentMode === 'smooth') drawSmooth();
 
             drawFootprints();
             drawGlobalSnow();
         }
 
-        function windowResized() {
-            resizeCanvas(windowWidth, windowHeight);
-            initPacked();
+        // --- AUDIO ENGINE ---
+        function setupAudio() {
+            noisePowder = new p5.Noise('brown'); noisePowder.amp(0); noisePowder.start();
+            filterPowder = new p5.LowPass(); filterPowder.freq(300);
+            noisePowder.disconnect(); noisePowder.connect(filterPowder);
+
+            noiseIceSlide.amp(0);
+            noiseIceSlide.loop();
+            filterIceSlide = new p5.BandPass(); 
+            filterIceSlide.freq(1500); 
+            filterIceSlide.res(8);
+            noiseIceSlide.disconnect(); 
+            noiseIceSlide.connect(filterIceSlide);
+
+            noiseIceStep = new p5.Noise('pink'); noiseIceStep.start(); noiseIceStep.amp(0);
+            filterIceStep = new p5.HighPass(); filterIceStep.freq(2000);
+            noiseIceStep.disconnect(); noiseIceStep.connect(filterIceStep);
+            envIceStep = new p5.Envelope(); envIceStep.setADSR(0.005, 0.08, 0, 0.02); envIceStep.setRange(0.4, 0);
+
+            oscIceStep = new p5.Oscillator('sine'); oscIceStep.start(); oscIceStep.amp(0);
+            envIceOsc = new p5.Envelope(); envIceOsc.setADSR(0.001, 0.1, 0, 0.1); envIceOsc.setRange(0.2, 0);
+
+            noiseCrunch = new p5.Noise('pink'); noiseCrunch.start(); noiseCrunch.amp(0);
+            filterCrunch = new p5.HighPass(); filterCrunch.freq(1000);
+            noiseCrunch.disconnect(); noiseCrunch.connect(filterCrunch);
+            envCrunch = new p5.Envelope(); envCrunch.setADSR(0.01, 0.15, 0, 0.1); envCrunch.setRange(0.8, 0);
+
+            noiseSmooth = new p5.Noise('white'); noiseSmooth.amp(0); noiseSmooth.start();
+            filterSmooth = new p5.BandPass(); filterSmooth.res(5);
+            noiseSmooth.disconnect(); noiseSmooth.connect(filterSmooth);
         }
 
-        function setMode(mode) {
-            currentMode = mode;
-            footprints = []; 
-            if (!audioStarted) {
-                userStartAudio();
-                audioStarted = true;
-                if (powderSound && powderSound.isLoaded()) {
-                    powderSound.loop();
-                    powderSound.setVolume(0);
-                }
-                document.getElementById('audio-hint').style.opacity = '0';
-            }
-            document.querySelectorAll('button').forEach(b => b.classList.remove('active'));
-            document.getElementById(`btn-${mode}`).classList.add('active');
-            if(mode === 'smooth') trail = [];
-            if(mode === 'slippery') {
-                sliderBox.x = width/2;
-                sliderBox.y = height/2;
-                sliderBox.vx = 0;
-                sliderBox.vy = 0;
-            }
+        function updateAudio() {
+            if (!audioStarted) return;
+            let speed = constrain(dist(mouseX, mouseY, pmouseX, pmouseY), 0, 100);
+            if (currentMode === 'powder') noisePowder.amp(map(speed, 0, 80, 0, 0.6, true), 0.1);
+            else noisePowder.amp(0, 0.5);
+
+            if (currentMode === 'slippery') {
+                noiseIceSlide.amp(map(speed, 0, 50, 0, 0.12, true), 0.1);
+                filterIceSlide.freq(map(speed, 0, 100, 1200, 2800));
+            } else noiseIceSlide.amp(0, 0.5);
+
+            if (currentMode === 'smooth') {
+                noiseSmooth.amp(map(speed, 0, 50, 0, 0.25, true), 0.1);
+                filterSmooth.freq(map(speed, 0, 100, 200, 1200));
+            } else noiseSmooth.amp(0, 0.5);
         }
 
+        // --- SHARED SYSTEMS ---
         function initGlobalSnow() {
-            for(let i = 0; i < 200; i++) {
-                globalSnow.push({
-                    x: Math.random() * window.innerWidth,
-                    y: Math.random() * window.innerHeight,
-                    size: Math.random() * 2 + 0.5,
-                    speed: Math.random() * 1 + 0.5,
-                    offset: Math.random() * 100
-                });
-            }
+            for(let i=0; i<200; i++) globalSnow.push({x: random(width), y: random(height), size: random(0.5, 2.5), speed: random(0.5, 1.5), offset: random(100)});
         }
-
         function drawGlobalSnow() {
-            noStroke();
-            fill(255, 180); 
-            for(let flake of globalSnow) {
-                flake.y += flake.speed;
-                flake.x += Math.sin((frameCount * 0.01) + flake.offset) * 0.3;
-                if(flake.y > height) {
-                    flake.y = -10;
-                    flake.x = Math.random() * width;
-                }
-                if(flake.x > width) flake.x = 0;
-                if(flake.x < 0) flake.x = width;
-                ellipse(flake.x, flake.y, flake.size);
+            noStroke(); fill(255, 180);
+            for(let f of globalSnow) {
+                f.y += f.speed; f.x += sin((frameCount*0.01)+f.offset)*0.3;
+                if(f.y > height) { f.y = -10; f.x = random(width); }
+                ellipse(f.x, f.y, f.size);
             }
         }
-
         function handleFootsteps() {
             let d = dist(mouseX, mouseY, lastStep.x, lastStep.y);
             if (d > 60) {
                 let angle = atan2(mouseY - lastStep.y, mouseX - lastStep.x);
-                let offsetDist = 15;
-                let offsetX = cos(angle + HALF_PI) * offsetDist * stepSide;
-                let offsetY = sin(angle + HALF_PI) * offsetDist * stepSide;
-                footprints.push({
-                    x: mouseX + offsetX,
-                    y: mouseY + offsetY,
-                    angle: angle,
-                    life: 255,
-                    side: stepSide
-                });
+                let offsetX = cos(angle + HALF_PI) * 15 * stepSide;
+                let offsetY = sin(angle + HALF_PI) * 15 * stepSide;
+                footprints.push({x: mouseX + offsetX, y: mouseY + offsetY, angle: angle, life: 255});
                 if (audioStarted) {
-                     if (currentMode === 'packed') {
-                        filterCrunch.freq(random(800, 1200));
-                        envCrunch.play(noiseCrunch);
-                    } else if (currentMode === 'slippery') {
-                        // Resonant Ice Clink + Crack
-                        //oscIceStep.freq(random(1800, 3200)); // High "Ting" freq
-                        //envIceOsc.play(oscIceStep);
+                     if (currentMode === 'packed') { 
+                        filterCrunch.freq(random(800, 1200)); 
+                        envCrunch.play(noiseCrunch); 
+                    } else if (currentMode === 'slippery') { 
                         
-                        //noiseIceSlide.freq(random(2000, 3500));
-                        envIceStep.play(noiseIceSlide);
+                        envIceStep.play(noiseIceSlide); 
                     }
                 }
-                lastStep.x = mouseX;
-                lastStep.y = mouseY;
-                stepSide *= -1; 
+                lastStep.x = mouseX; lastStep.y = mouseY; stepSide *= -1;
             }
+            let decay = 1.5;
             for (let i = footprints.length - 1; i >= 0; i--) {
-                footprints[i].life -= 1.5; 
-                if (footprints[i].life <= 0) {
-                    footprints.splice(i, 1);
-                }
+                footprints[i].life -= decay;
+                if (footprints[i].life <= 0) footprints.splice(i, 1);
             }
         }
-
         function drawFootprints() {
             noStroke();
             for (let fp of footprints) {
-                push();
-                translate(fp.x, fp.y);
-                rotate(fp.angle);
+                push(); translate(fp.x, fp.y); rotate(fp.angle);
                 let alpha = map(fp.life, 0, 255, 0, 150);
-                if (currentMode === 'packed') {
-                    fill(255, 255, 255, map(fp.life, 0, 255, 0, 40));
-                } else if (currentMode === 'powder') {
-                    fill(255, 255, 255, map(fp.life, 0, 255, 0, 40));
-                } else if (currentMode === 'slippery') {
-                    fill(200, 240, 255, alpha);
-                } else {
-                    fill(255, 255, 255, alpha * 0.5);
-                }
+                if (currentMode === 'slippery') fill(200, 240, 255, alpha);
+                else fill(255, 255, 255, map(fp.life, 0, 255, 0, 40));
                 rect(0, 0, 12, 24, 6);
                 pop();
             }
         }
 
-        function initPowder() {
-            for (let i = 0; i < NUM_PARTICLES; i++) {
-                particles.push({
-                    x: Math.random() * window.innerWidth,
-                    y: Math.random() * window.innerHeight,
-                    baseX: Math.random() * window.innerWidth, 
-                    baseY: Math.random() * window.innerHeight, 
-                    vx: 0,
-                    vy: 0,
-                    size: Math.random() * 3 + 1,
-                    drag: 0.92 + Math.random() * 0.05
-                });
-            }
-        }
-
+        // --- MODES ---
+        function initPowder() { for(let i=0; i<1200; i++) particles.push({x: random(width), y: random(height), baseX: random(width), baseY: random(height), vx:0, vy:0, size:random(1,4), drag:random(0.92, 0.97)}); }
         function drawPowder() {
             noStroke();
             particles.forEach(p => {
-                let dx = mouseX - p.x;
-                let dy = mouseY - p.y;
-                let dist = Math.sqrt(dx*dx + dy*dy);
-                let force = 0;
-                if (dist < 150) {
-                    force = (150 - dist) / 150;
-                    let angle = Math.atan2(dy, dx);
-                    p.vx -= Math.cos(angle) * force * 5;
-                    p.vy -= Math.sin(angle) * force * 5;
-                }
-                let homeDx = p.baseX - p.x;
-                let homeDy = p.baseY - p.y;
-                p.vx += homeDx * 0.002;
-                p.vy += homeDy * 0.002;
-                p.vx += (Math.random() - 0.5) * 0.1;
-                p.vy += (Math.random() - 0.5) * 0.1;
-                p.x += p.vx;
-                p.y += p.vy;
-                p.vx *= p.drag;
-                p.vy *= p.drag;
-                let speed = Math.abs(p.vx) + Math.abs(p.vy);
-                let alpha = map(dist, 0, 200, 255, 100);
-                alpha = constrain(alpha - (speed * 10), 50, 255);
-                fill(240, 245, 255, alpha);
-                ellipse(p.x, p.y, p.size);
+                let d = dist(mouseX, mouseY, p.x, p.y);
+                if (d < 150) { let f = (150-d)/150; let a = atan2(p.y-mouseY, p.x-mouseX); p.vx += cos(a)*f*5; p.vy += sin(a)*f*5; }
+                p.vx += (p.baseX-p.x)*0.002; p.vy += (p.baseY-p.y)*0.002;
+                p.x += p.vx; p.y += p.vy; p.vx *= p.drag; p.vy *= p.drag;
+                fill(240, 245, 255, map(d, 0, 200, 255, 100)); ellipse(p.x, p.y, p.size);
             });
         }
-
-        function initSlippery() {
-            sliderBox.x = window.innerWidth / 2;
-            sliderBox.y = window.innerHeight / 2;
-            for(let i=0; i<50; i++) {
-                iceShards.push({
-                    x: Math.random() * window.innerWidth,
-                    y: Math.random() * window.innerHeight,
-                    w: Math.random() * 100 + 20,
-                    h: Math.random() * 2 + 1,
-                    rot: Math.random() * PI
-                });
-            }
-        }
-
+        function initSlippery() { sliderBox = {x:width/2, y:height/2, vx:0, vy:0}; for(let i=0;i<50;i++) iceShards.push({x:random(width), y:random(height), w:random(20,120), h:2, rot:random(PI)}); }
         function drawSlippery() {
-            push();
-            translate(width/2, height/2);
-            rotate(-PI/8);
-            let sheenX = (frameCount * 3) % (width * 2.5) - width;
-            noStroke();
-            for(let i=0; i<20; i++) {
-                 fill(255, map(i, 0, 20, 0, 5));
-                 rect(sheenX - width/2 + (i*10), 0, 20, height*2);
-            }
+            push(); translate(width/2, height/2); rotate(-PI/8);
+            let sX = (frameCount*3)%(width*2.5)-width; noStroke();
+            for(let i=0; i<20; i++) { fill(255, map(i,0,20,0,5)); rect(sX-width/2+(i*10), 0, 20, height*2); }
             pop();
-
-            stroke(200, 230, 255, 40);
-            strokeWeight(1);
-            noFill();
-            iceShards.forEach(s => {
-                push();
-                translate(s.x, s.y);
-                rotate(s.rot);
-                line(-s.w/2, 0, s.w/2, 0); 
-                pop();
-            });
-
-            let dx = mouseX - sliderBox.x;
-            let dy = mouseY - sliderBox.y;
-            let accX = dx * 0.005; 
-            let accY = dy * 0.005;
-            sliderBox.vx += accX;
-            sliderBox.vy += accY;
-            sliderBox.vx *= 0.98; 
-            sliderBox.vy *= 0.98;
-            sliderBox.x += sliderBox.vx;
-            sliderBox.y += sliderBox.vy;
-
-            stroke(255, 100);
-            line(sliderBox.x, sliderBox.y, mouseX, mouseY);
-
-            noStroke();
-            fill(200, 240, 255, 20);
-            ellipse(sliderBox.x, sliderBox.y, 200, 200);
+            stroke(200, 230, 255, 40); noFill();
+            iceShards.forEach(s => { push(); translate(s.x, s.y); rotate(s.rot); line(-s.w/2, 0, s.w/2, 0); pop(); });
+            let dx = mouseX-sliderBox.x; let dy = mouseY-sliderBox.y;
+            sliderBox.vx += dx*0.005; sliderBox.vy += dy*0.005; sliderBox.vx *= 0.98; sliderBox.vy *= 0.98;
+            sliderBox.x += sliderBox.vx; sliderBox.y += sliderBox.vy;
+            stroke(255, 100); line(sliderBox.x, sliderBox.y, mouseX, mouseY);
+            noStroke(); fill(200, 240, 255, 20); ellipse(sliderBox.x, sliderBox.y, 200, 200);
         }
-
-        function initPacked() {
-            cols = Math.ceil(window.innerWidth / scaleSize);
-            rows = Math.ceil(window.innerHeight / scaleSize);
-            grid = [];
-            for (let i = 0; i < cols; i++) {
-                grid[i] = [];
-                for (let j = 0; j < rows; j++) {
-                    grid[i][j] = {
-                        val: 0, 
-                        recoverSpeed: 0.005 
-                    };
-                }
-            }
-        }
-
+        function initPacked() { let c = ceil(width/20); let r = ceil(height/20); for(let i=0;i<c;i++){ grid[i]=[]; for(let j=0;j<r;j++) grid[i][j]={val:0}; } }
         function drawPacked() {
-            noStroke();
-            let mx = Math.floor(mouseX / scaleSize);
-            let my = Math.floor(mouseY / scaleSize);
-            let influenceRadius = 4;
-
-            for (let i = 0; i < cols; i++) {
-                for (let j = 0; j < rows; j++) {
-                    let cell = grid[i][j];
-                    let d = dist(i, j, mx, my);
-                    if (d < influenceRadius) {
-                        let force = map(d, 0, influenceRadius, 1, 0);
-                        cell.val = Math.min(cell.val + force * 0.2, 1); 
-                    }
-                    if (cell.val > 0) {
-                        cell.val -= cell.recoverSpeed;
-                    } else {
-                        cell.val = 0;
-                    }
-                    let noiseVal = noise(i * 0.1, j * 0.1, frameCount * 0.005); 
-                    let baseBrightness = map(noiseVal, 0, 1, 8, 25);
-                    let brightness = baseBrightness + map(cell.val, 0, 1, 0, 40); 
-                    fill(brightness, brightness + 2, brightness + 10);
-                    stroke(20, 20, 30);
-                    strokeWeight(1);
-                    let nx = i * scaleSize + scaleSize/2;
-                    let ny = j * scaleSize + scaleSize/2;
-                    rect(nx, ny, scaleSize - 2, scaleSize - 2);
+            let mx = floor(mouseX/20); let my = floor(mouseY/20);
+            for(let i=0; i<grid.length; i++) {
+                for(let j=0; j<grid[i].length; j++) {
+                    let d = dist(i,j,mx,my); if(d<4) grid[i][j].val = min(grid[i][j].val + map(d,0,4,0.2,0), 1);
+                    grid[i][j].val = max(grid[i][j].val-0.005, 0);
+                    let b = map(noise(i*0.1, j*0.1, frameCount*0.005),0,1,8,25) + grid[i][j].val*40;
+                    fill(b, b+2, b+10); stroke(20,20,30); rect(i*20+10, j*20+10, 18, 18);
                 }
             }
         }
-
-        function initSmooth() {
-            trail = [];
-        }
-
+        function initSmooth() { trail = []; }
         function drawSmooth() {
-            stroke(255, 5);
-            strokeWeight(1);
-            for(let y=0; y<height; y+=6) {
-                line(0, y, width, y);
-            }
-
-            trail.push({x: mouseX, y: mouseY, vx: mouseX - pmouseX, vy: mouseY - pmouseY});
-            if (trail.length > maxTrail) {
-                trail.shift();
-            }
-
-            strokeWeight(1);
-            stroke(255, 30);
-            noFill();
-            for(let i = 0; i < height; i+= 40) {
-                beginShape();
-                for(let x = 0; x <= width; x += 50) {
-                    let d = dist(x, i, mouseX, mouseY);
-                    let offset = map(d, 0, 500, 50, 0, true);
-                    curveVertex(x, i + offset);
-                }
-                endShape();
-            }
-
-            noFill();
-            strokeWeight(20);
-            stroke(200, 230, 255, 50);
-            drawTrailCurve();
-            strokeWeight(6);
-            stroke(255);
-            drawTrailCurve();
+            stroke(255, 5); for(let y=0; y<height; y+=6) line(0,y,width,y);
+            trail.push({x:mouseX, y:mouseY}); if(trail.length>50) trail.shift();
+            stroke(255, 30); noFill();
+            for(let i=0; i<height; i+=40){ beginShape(); for(let x=0; x<=width; x+=50) curveVertex(x, i+map(dist(x,i,mouseX,mouseY),0,500,50,0,true)); endShape(); }
+            strokeWeight(6); stroke(255); beginShape(); for(let p of trail) curveVertex(p.x, p.y); endShape(); strokeWeight(1);
         }
 
-        function drawTrailCurve() {
-            beginShape();
-            for (let i = 0; i < trail.length; i++) {
-                curveVertex(trail[i].x, trail[i].y);
-            }
-            endShape();
+        function setMode(mode) {
+            currentMode = mode; footprints = [];
+            startAudioContext();
+            document.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+            document.getElementById(`btn-${mode}`).classList.add('active');
+            if(mode === 'smooth') trail = [];
+            if(mode === 'slippery') sliderBox = {x:mouseX, y:mouseY, vx:0, vy:0};
         }
+
+        function windowResized() { resizeCanvas(windowWidth, windowHeight); }
     </script>
 </body>
 </html>
